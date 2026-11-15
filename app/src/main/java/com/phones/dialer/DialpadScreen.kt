@@ -62,7 +62,7 @@ fun DialpadScreen(initial: String = "") {
     val ctx = LocalContext.current
     val haptic = LocalHapticFeedback.current
 
-    Column(Modifier.fillMaxSize().background(SamBg).statusBarsPadding()) {
+        Column(Modifier.fillMaxSize().background(SamBg).statusBarsPadding().navigationBarsPadding().padding(bottom = 77.dp)) {
         Row(
             Modifier.fillMaxWidth().padding(top = 16.dp, end = 24.dp),
             horizontalArrangement = Arrangement.End,
