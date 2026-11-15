@@ -5,8 +5,10 @@ import android.app.role.RoleManager
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
@@ -39,6 +41,11 @@ import androidx.core.content.ContextCompat
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val transparent = android.graphics.Color.TRANSPARENT
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(transparent),
+            navigationBarStyle = SystemBarStyle.dark(transparent)
+        )
         val dialNumber = intent?.data?.schemeSpecificPart ?: ""
         setContent { SamTheme { App(dialNumber) } }
     }
@@ -81,6 +88,7 @@ fun App(initialNumber: String) {
     val pageBg = if (tab == 0) SamBg else Color.Black
     Scaffold(
         containerColor = pageBg,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = { SamNavBar(tab, pageBg) { tab = it } }
     ) { pad ->
         Crossfade(tab, Modifier.padding(pad), animationSpec = tween(180), label = "tabs") {
@@ -96,12 +104,13 @@ fun App(initialNumber: String) {
 @Composable
 fun SamNavBar(tab: Int, bg: Color, onTab: (Int) -> Unit) {
     Box(
-        Modifier.fillMaxWidth().background(bg).padding(horizontal = 28.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().background(bg).navigationBarsPadding()
+            .padding(horizontal = 56.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(40.dp))
-                .background(SamNav).padding(6.dp)
+                .background(SamNav).padding(4.dp)
         ) {
             NavItem("Keypad", Icons.Filled.Dialpad, tab == 0, Modifier.weight(1f)) { onTab(0) }
             NavItem("Recents", Icons.Filled.History, tab == 1, Modifier.weight(1f)) { onTab(1) }
@@ -120,13 +129,13 @@ private fun NavItem(
         spring(stiffness = Spring.StiffnessMedium), label = "nav"
     )
     Column(
-        modifier.clip(RoundedCornerShape(34.dp)).background(bg)
-            .clickable(onClick = onClick).padding(vertical = 10.dp),
+        modifier.clip(RoundedCornerShape(30.dp)).background(bg)
+            .clickable(onClick = onClick).padding(vertical = 7.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(icon, null, tint = Color.White, modifier = Modifier.size(28.dp))
+        Icon(icon, null, tint = Color.White, modifier = Modifier.size(21.dp))
         Text(
-            label, color = Color.White, fontSize = 15.sp,
+            label, color = Color.White, fontSize = 10.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
         )
     }
