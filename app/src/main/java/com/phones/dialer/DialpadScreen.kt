@@ -16,9 +16,13 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Voicemail
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -43,6 +47,7 @@ fun placeCall(ctx: Context, number: String) {
         Toast.makeText(ctx, "Call fail: ${e.message}", Toast.LENGTH_LONG).show()
     }
 }
+
 private val KEYS = listOf(
     listOf("1" to "", "2" to "ABC", "3" to "DEF"),
     listOf("4" to "GHI", "5" to "JKL", "6" to "MNO"),
@@ -57,24 +62,29 @@ fun DialpadScreen(initial: String = "") {
     val ctx = LocalContext.current
     val haptic = LocalHapticFeedback.current
 
-    Column(
-        Modifier.fillMaxSize().padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(Modifier.weight(1f))
-        Text(
-            number, fontSize = 38.sp, fontWeight = FontWeight.Light,
-            color = Color.White, maxLines = 1
-        )
-        Spacer(Modifier.height(24.dp))
+    Column(Modifier.fillMaxSize().background(SamBg)) {
+        Row(
+            Modifier.fillMaxWidth().padding(top = 20.dp, end = 24.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Filled.Search, null, tint = Color.White, modifier = Modifier.size(32.dp))
+            Spacer(Modifier.width(28.dp))
+            Icon(Icons.Filled.MoreVert, null, tint = Color.White, modifier = Modifier.size(32.dp))
+        }
+
+        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
+            Text(
+                number, fontSize = 40.sp, fontWeight = FontWeight.Light,
+                color = Color.White, maxLines = 1,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+        }
 
         KEYS.forEach { row ->
-            Row(
-                Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
                 row.forEach { (digit, letters) ->
-                    DialKey(digit, letters) {
+                    DialKey(digit, letters, Modifier.weight(1f)) {
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         number += digit
                     }
@@ -83,21 +93,28 @@ fun DialpadScreen(initial: String = "") {
         }
 
         Row(
-            Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 24.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Spacer(Modifier.size(76.dp))
-            CallButton { placeCall(ctx, number) }
-            Box(
-                Modifier.size(76.dp).clip(CircleShape).combinedClickable(
-                    onClick = { if (number.isNotEmpty()) number = number.dropLast(1) },
-                    onLongClick = { number = "" }
-                ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (number.isNotEmpty())
-                    Icon(Icons.AutoMirrored.Filled.Backspace, null, tint = Color.White)
+            Box(Modifier.weight(1f))
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                CallButton { placeCall(ctx, number) }
+            }
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                if (number.isNotEmpty()) {
+                    Box(
+                        Modifier.size(72.dp).clip(CircleShape).combinedClickable(
+                            onClick = { number = number.dropLast(1) },
+                            onLongClick = { number = "" }
+                        ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Backspace, null,
+                            tint = Color.White, modifier = Modifier.size(30.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -105,28 +122,32 @@ fun DialpadScreen(initial: String = "") {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun DialKey(digit: String, letters: String, onClick: () -> Unit) {
+private fun DialKey(digit: String, letters: String, modifier: Modifier, onClick: () -> Unit) {
     val src = remember { MutableInteractionSource() }
     val pressed by src.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        if (pressed) 0.86f else 1f,
+        if (pressed) 0.9f else 1f,
         spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium), label = "scale"
     )
     val bg by animateColorAsState(
-        if (pressed) Color(0x33FFFFFF) else Color.Transparent,
+        if (pressed) Color(0x22FFFFFF) else Color.Transparent,
         spring(stiffness = Spring.StiffnessMedium), label = "bg"
     )
     Box(
-        Modifier.size(76.dp).scale(scale).clip(CircleShape).background(bg)
-            .combinedClickable(
-                interactionSource = src, indication = null, onClick = onClick
-            ),
+        modifier.height(92.dp).scale(scale).clip(RoundedCornerShape(46.dp)).background(bg)
+            .combinedClickable(interactionSource = src, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(digit, fontSize = 32.sp, fontWeight = FontWeight.Light, color = Color.White)
-            if (letters.isNotEmpty())
-                Text(letters, fontSize = 10.sp, color = Color.Gray, letterSpacing = 1.sp)
+            Text(digit, fontSize = 46.sp, fontWeight = FontWeight.Light, color = Color.White)
+            if (digit == "1") {
+                Icon(
+                    Icons.Filled.Voicemail, null, tint = SamGray,
+                    modifier = Modifier.size(22.dp)
+                )
+            } else if (letters.isNotEmpty()) {
+                Text(letters, fontSize = 15.sp, color = SamGray)
+            }
         }
     }
 }
@@ -141,8 +162,8 @@ private fun CallButton(onClick: () -> Unit) {
         spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium), label = "call"
     )
     Box(
-        Modifier.size(76.dp).scale(scale).clip(CircleShape).background(SamGreen)
+        Modifier.size(100.dp).scale(scale).clip(CircleShape).background(SamGreen)
             .combinedClickable(interactionSource = src, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center
-    ) { Icon(Icons.Filled.Call, null, tint = Color.White, modifier = Modifier.size(32.dp)) }
+    ) { Icon(Icons.Filled.Call, null, tint = Color.White, modifier = Modifier.size(46.dp)) }
 }
