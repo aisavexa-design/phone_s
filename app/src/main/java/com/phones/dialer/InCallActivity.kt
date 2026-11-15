@@ -41,7 +41,7 @@ fun InCallScreen(onDone: () -> Unit) {
     val state = CallManager.state
     LaunchedEffect(call) { if (call == null) onDone() }
 
-    val number = call?.details?.handle?.schemeSpecificPart ?: ""
+    val number = try { call?.details?.handle?.schemeSpecificPart } catch (e: Exception) { null } ?: ""
     val ringing = state == Call.STATE_RINGING
     val label = when (state) {
         Call.STATE_RINGING -> "Incoming call"
