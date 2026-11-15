@@ -5,13 +5,18 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.CallLog
 import android.text.format.DateUtils
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallMade
 import androidx.compose.material.icons.filled.CallMissed
 import androidx.compose.material.icons.filled.CallReceived
@@ -25,16 +30,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 
 data class CallItem(val id: Long, val number: String, val name: String?, val type: Int, val date: Long)
 data class CallGroup(
@@ -99,7 +112,7 @@ fun RecentsScreen(granted: Boolean) {
             .map { dayLabel(it.first().date) to it }
     }
 
-    Column(Modifier.fillMaxSize().background(Color.Black)) {
+    Column(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()) {
         PageHeader(Icons.Filled.FilterList)
         if (!granted) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -109,18 +122,69 @@ fun RecentsScreen(granted: Boolean) {
             LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 24.dp)) {
                 items(sections, key = { it.second.first().id }) { (label, rows) ->
                     Text(
-                        label, fontSize = 22.sp, color = SamGray,
-                        modifier = Modifier.padding(start = 28.dp, top = 16.dp, bottom = 10.dp)
+                        label, fontSize = 13.sp, color = SamGray,
+                        modifier = Modifier.padding(start = 28.dp, top = 14.dp, bottom = 8.dp)
                     )
                     Column(
-                        Modifier.padding(horizontal = 12.dp)
-                            .clip(RoundedCornerShape(36.dp)).background(SamBg)
+                        Modifier.padding(horizontal = 10.dp)
+                            .clip(RoundedCornerShape(28.dp)).background(SamBg)
                     ) {
                         rows.forEachIndexed { i, g -> CallRow(g, i == rows.lastIndex) }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SwipeCallRow(onCall: () -> Unit, content: @Composable () -> Unit) {
+    val offset = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
+    val currentOnCall by rememberUpdatedState(onCall)
+    var widthPx by remember { mutableIntStateOf(1) }
+
+    Box(Modifier.fillMaxWidth().onSizeChanged { widthPx = it.width }) {
+        Box(
+            Modifier.matchParentSize().background(SamGreen).padding(start = 24.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Icon(
+                Icons.Filled.Call, null, tint = Color.White,
+                modifier = Modifier.size(22.dp).graphicsLayer {
+                    alpha = (offset.value / (widthPx * 0.25f)).coerceIn(0f, 1f)
+                }
+            )
+        }
+        Box(
+            Modifier.offset { IntOffset(offset.value.roundToInt(), 0) }
+                .background(SamBg)
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragEnd = {
+                            val hit = offset.value > size.width * 0.3f
+                            scope.launch {
+                                if (hit) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    currentOnCall()
+                                }
+                                offset.animateTo(
+                                    0f,
+                                    spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium)
+                                )
+                            }
+                        },
+                        onDragCancel = { scope.launch { offset.animateTo(0f) } },
+                        onHorizontalDrag = { change, dx ->
+                            change.consume()
+                            scope.launch {
+                                offset.snapTo((offset.value + dx).coerceIn(0f, size.width * 0.5f))
+                            }
+                        }
+                    )
+                }
+        ) { content() }
     }
 }
 
@@ -139,30 +203,32 @@ private fun CallRow(g: CallGroup, isLast: Boolean) {
     val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(g.date))
 
     Column {
-        Row(
-            Modifier.fillMaxWidth()
-                .clickable { placeCall(ctx, g.number) }
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, null, tint = tint, modifier = Modifier.size(28.dp))
-            Spacer(Modifier.width(28.dp))
-            Text(
-                title, fontSize = 24.sp, color = Color.White,
-                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            Column(horizontalAlignment = Alignment.End) {
+        SwipeCallRow(onCall = { placeCall(ctx, g.number) }) {
+            Row(
+                Modifier.fillMaxWidth()
+                    .clickable { placeCall(ctx, g.number) }
+                    .padding(horizontal = 20.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(icon, null, tint = tint, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(20.dp))
                 Text(
-                    time, fontSize = 19.sp,
-                    color = if (missed) Color(0xFFFF5A52) else SamGray
+                    title, fontSize = 16.5.sp, color = Color.White,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
-                Spacer(Modifier.height(4.dp))
-                MsgChip(g.number)
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        time, fontSize = 12.sp,
+                        color = if (missed) Color(0xFFFF5A52) else SamGray
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    MsgChip(g.number)
+                }
             }
         }
         if (!isLast) {
-            HorizontalDivider(Modifier.padding(horizontal = 24.dp), color = Color(0xFF3A3A3C))
+            HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = Color(0xFF3A3A3C))
         }
     }
 }
@@ -171,7 +237,7 @@ private fun CallRow(g: CallGroup, isLast: Boolean) {
 private fun MsgChip(number: String) {
     val ctx = LocalContext.current
     Box(
-        Modifier.size(26.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFFFA726))
+        Modifier.size(16.dp).clip(RoundedCornerShape(5.dp)).background(Color(0xFFFFA726))
             .clickable {
                 try {
                     if (number.isNotBlank())
@@ -180,6 +246,6 @@ private fun MsgChip(number: String) {
             },
         contentAlignment = Alignment.Center
     ) {
-        Box(Modifier.size(12.dp).clip(RoundedCornerShape(4.dp)).background(Color.White))
+        Box(Modifier.size(8.dp).clip(RoundedCornerShape(3.dp)).background(Color.White))
     }
 }
