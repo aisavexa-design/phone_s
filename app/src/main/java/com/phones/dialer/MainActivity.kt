@@ -24,12 +24,12 @@ import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -86,26 +86,26 @@ fun App(initialNumber: String) {
 
     var tab by remember { mutableIntStateOf(0) }
     val pageBg = if (tab == 0) SamBg else Color.Black
-    Scaffold(
-        containerColor = pageBg,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        bottomBar = { SamNavBar(tab, pageBg) { tab = it } }
-    ) { pad ->
-        Crossfade(tab, Modifier.padding(pad), animationSpec = tween(180), label = "tabs") {
+
+    Box(Modifier.fillMaxSize().background(pageBg)) {
+        Crossfade(tab, Modifier.fillMaxSize(), animationSpec = tween(180), label = "tabs") {
             when (it) {
                 0 -> DialpadScreen(initialNumber)
                 1 -> RecentsScreen(granted)
                 else -> ContactsScreen(granted)
             }
         }
+        SamNavBar(tab, pageBg, Modifier.align(Alignment.BottomCenter)) { tab = it }
     }
 }
 
 @Composable
-fun SamNavBar(tab: Int, bg: Color, onTab: (Int) -> Unit) {
+fun SamNavBar(tab: Int, bg: Color, modifier: Modifier = Modifier, onTab: (Int) -> Unit) {
     Box(
-        Modifier.fillMaxWidth().background(bg).navigationBarsPadding()
-            .padding(horizontal = 56.dp, vertical = 10.dp),
+        modifier.fillMaxWidth()
+            .background(Brush.verticalGradient(listOf(Color.Transparent, bg.copy(alpha = 0.9f), bg)))
+            .navigationBarsPadding()
+            .padding(start = 56.dp, end = 56.dp, top = 36.dp, bottom = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(
