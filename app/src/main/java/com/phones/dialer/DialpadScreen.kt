@@ -37,13 +37,12 @@ import androidx.compose.ui.unit.sp
 fun placeCall(ctx: Context, number: String) {
     if (number.isBlank()) return
     try {
-        ctx.getSystemService(TelecomManager::class.java)
-            .placeCall(Uri.fromParts("tel", number, null), Bundle())
-    } catch (e: SecurityException) {
-        Toast.makeText(ctx, "Phone permission chahiye", Toast.LENGTH_SHORT).show()
+        val tm = ctx.getSystemService(TelecomManager::class.java)
+        tm.placeCall(Uri.fromParts("tel", number, null), Bundle())
+    } catch (e: Exception) {
+        Toast.makeText(ctx, "Call fail: ${e.message}", Toast.LENGTH_LONG).show()
     }
 }
-
 private val KEYS = listOf(
     listOf("1" to "", "2" to "ABC", "3" to "DEF"),
     listOf("4" to "GHI", "5" to "JKL", "6" to "MNO"),
