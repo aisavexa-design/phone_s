@@ -104,7 +104,7 @@ fun ContactsScreen(granted: Boolean) {
             .sortedBy { if (it.first == "&") "" else it.first }
     }
 
-    Column(Modifier.fillMaxSize().background(Color.Black)) {
+    Column(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()) {
         PageHeader(Icons.Filled.Add)
         if (!granted) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -116,19 +116,19 @@ fun ContactsScreen(granted: Boolean) {
             if (favs.isNotEmpty()) {
                 item {
                     Row(
-                        Modifier.padding(start = 28.dp, top = 16.dp, bottom = 12.dp),
+                        Modifier.padding(start = 28.dp, top = 12.dp, bottom = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Filled.Star, null, tint = SamGray, modifier = Modifier.size(34.dp))
-                        Spacer(Modifier.width(14.dp))
-                        Text("Favourites", fontSize = 22.sp, color = SamGray)
+                        Icon(Icons.Filled.Star, null, tint = SamGray, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text("Favourites", fontSize = 13.sp, color = SamGray)
                     }
                     Column(
-                        Modifier.padding(horizontal = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        Modifier.padding(horizontal = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         favs.chunked(3).forEach { row ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 row.forEach { c ->
                                     FavTile(c, Modifier.weight(1f)) { placeCall(ctx, c.number) }
                                 }
@@ -141,42 +141,42 @@ fun ContactsScreen(granted: Boolean) {
             if (data.profileName != null) {
                 item {
                     Text(
-                        "My profile", fontSize = 22.sp, color = SamGray,
-                        modifier = Modifier.padding(start = 28.dp, top = 28.dp, bottom = 10.dp)
+                        "My profile", fontSize = 13.sp, color = SamGray,
+                        modifier = Modifier.padding(start = 28.dp, top = 20.dp, bottom = 8.dp)
                     )
                     Pill {
-                        Avatar(data.profileName ?: "", data.profilePhoto, 56.dp, 0L, 26.sp)
-                        Spacer(Modifier.width(18.dp))
-                        Text(data.profileName ?: "", fontSize = 22.sp, color = Color.White)
+                        Avatar(data.profileName ?: "", data.profilePhoto, 36.dp, 0L, 17.sp)
+                        Spacer(Modifier.width(14.dp))
+                        Text(data.profileName ?: "", fontSize = 16.5.sp, color = Color.White)
                     }
                 }
             }
             item {
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(10.dp))
                 Pill {
                     Box(
-                        Modifier.size(56.dp).clip(CircleShape).background(Color(0xFFB5B5B5)),
+                        Modifier.size(36.dp).clip(CircleShape).background(Color(0xFFB5B5B5)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.Groups, null, tint = Color.White, modifier = Modifier.size(32.dp))
+                        Icon(Icons.Filled.Groups, null, tint = Color.White, modifier = Modifier.size(22.dp))
                     }
-                    Spacer(Modifier.width(18.dp))
-                    Text("Groups", fontSize = 22.sp, color = Color.White)
+                    Spacer(Modifier.width(14.dp))
+                    Text("Groups", fontSize = 16.5.sp, color = Color.White)
                 }
             }
             groups.forEach { (letter, rows) ->
                 item(key = "h$letter") {
                     Text(
-                        letter, fontSize = 22.sp, color = SamGray,
-                        modifier = Modifier.padding(start = 28.dp, top = 24.dp, bottom = 8.dp)
+                        letter, fontSize = 14.sp, color = SamGray,
+                        modifier = Modifier.padding(start = 28.dp, top = 18.dp, bottom = 6.dp)
                     )
                 }
                 items(rows, key = { "c${it.id}" }) { c ->
                     Pill(onClick = { placeCall(ctx, c.number) }) {
-                        Avatar(c.name, c.photo, 56.dp, c.id, 26.sp)
-                        Spacer(Modifier.width(18.dp))
+                        Avatar(c.name, c.photo, 36.dp, c.id, 17.sp)
+                        Spacer(Modifier.width(14.dp))
                         Text(
-                            c.name, fontSize = 22.sp, color = Color.White,
+                            c.name, fontSize = 16.5.sp, color = Color.White,
                             maxLines = 2, overflow = TextOverflow.Ellipsis
                         )
                     }
@@ -188,12 +188,13 @@ fun ContactsScreen(granted: Boolean) {
 
 @Composable
 private fun Pill(onClick: (() -> Unit)? = null, content: @Composable RowScope.() -> Unit) {
-    var m = Modifier.padding(horizontal = 12.dp, vertical = 3.dp).fillMaxWidth()
+    var m = Modifier.padding(horizontal = 10.dp, vertical = 2.dp).fillMaxWidth()
         .clip(RoundedCornerShape(40.dp)).background(SamBg)
     if (onClick != null) m = m.clickable(onClick = onClick)
-    Row(m.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        content()
-    }
+    Row(
+        m.padding(horizontal = 14.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) { content() }
 }
 
 @Composable
@@ -208,7 +209,7 @@ private fun FavTile(c: ContactRow, modifier: Modifier, onClick: () -> Unit) {
         verticalArrangement = Arrangement.Center
     ) {
         Box(
-            Modifier.size(90.dp).clip(CircleShape)
+            Modifier.size(59.dp).clip(CircleShape)
                 .then(if (bmp == null) Modifier.border(1.dp, Color(0x66FFFFFF), CircleShape) else Modifier),
             contentAlignment = Alignment.Center
         ) {
@@ -216,14 +217,14 @@ private fun FavTile(c: ContactRow, modifier: Modifier, onClick: () -> Unit) {
                 Image(bmp, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             } else {
                 Text(
-                    c.name.take(1).uppercase(), fontSize = 52.sp,
+                    c.name.take(1).uppercase(), fontSize = 33.sp,
                     fontWeight = FontWeight.Light, color = Color.White
                 )
             }
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
         Text(
-            c.name, fontSize = 18.sp, color = Color.White, maxLines = 1,
+            c.name, fontSize = 12.sp, color = Color.White, maxLines = 1,
             overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 8.dp)
         )
     }
