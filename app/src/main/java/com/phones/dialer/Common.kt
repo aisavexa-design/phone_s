@@ -40,18 +40,18 @@ val TILE_COLORS = listOf(
 @Composable
 fun PageHeader(firstIcon: ImageVector) {
     Row(
-        Modifier.fillMaxWidth().padding(start = 28.dp, end = 24.dp, top = 20.dp, bottom = 8.dp),
+        Modifier.fillMaxWidth().padding(start = 28.dp, end = 24.dp, top = 16.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            "Phone", fontSize = 34.sp, fontWeight = FontWeight.Bold,
+            "Phone", fontSize = 20.sp, fontWeight = FontWeight.Bold,
             color = Color.White, modifier = Modifier.weight(1f)
         )
-        Icon(firstIcon, null, tint = Color.White, modifier = Modifier.size(32.dp))
-        Spacer(Modifier.width(28.dp))
-        Icon(Icons.Filled.Search, null, tint = Color.White, modifier = Modifier.size(32.dp))
-        Spacer(Modifier.width(28.dp))
-        Icon(Icons.Filled.MoreVert, null, tint = Color.White, modifier = Modifier.size(32.dp))
+        Icon(firstIcon, null, tint = Color.White, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(20.dp))
+        Icon(Icons.Filled.Search, null, tint = Color.White, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(20.dp))
+        Icon(Icons.Filled.MoreVert, null, tint = Color.White, modifier = Modifier.size(24.dp))
     }
 }
 
