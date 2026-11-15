@@ -5,8 +5,8 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.CallLog
 import android.text.format.DateUtils
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,11 +29,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,10 +50,17 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 data class CallItem(val id: Long, val number: String, val name: String?, val type: Int, val date: Long)
+
 data class CallGroup(
     val id: Long, val number: String, val name: String?,
-    val type: Int, val date: Long, val count: Int
+    val type: Int, val date: Long, val count: Int, val time: String
 )
+
+sealed interface RecentEntry { val key: String }
+data class HeaderEntry(val label: String, override val key: String) : RecentEntry
+data class RowEntry(
+    val g: CallGroup, val first: Boolean, val last: Boolean, override val key: String
+) : RecentEntry
 
 private fun loadCalls(ctx: Context): List<CallItem> {
     val out = mutableListOf<CallItem>()
@@ -83,16 +90,26 @@ private fun dayLabel(ms: Long): String = when {
     else -> SimpleDateFormat("EEE, d MMM", Locale.getDefault()).format(Date(ms))
 }
 
-private fun groupCalls(list: List<CallItem>): List<CallGroup> {
-    val out = mutableListOf<CallGroup>()
-    for (c in list) {
-        val last = out.lastOrNull()
+private fun buildEntries(calls: List<CallItem>): List<RecentEntry> {
+    val fmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+    val groups = mutableListOf<CallGroup>()
+    for (c in calls) {
+        val last = groups.lastOrNull()
         if (last != null && last.number == c.number && last.type == c.type &&
             dayKey(last.date) == dayKey(c.date)
         ) {
-            out[out.lastIndex] = last.copy(count = last.count + 1)
+            groups[groups.lastIndex] = last.copy(count = last.count + 1)
         } else {
-            out += CallGroup(c.id, c.number, c.name, c.type, c.date, 1)
+            groups += CallGroup(
+                c.id, c.number, c.name, c.type, c.date, 1, fmt.format(Date(c.date))
+            )
+        }
+    }
+    val out = ArrayList<RecentEntry>()
+    for (rows in groups.groupBy { dayKey(it.date) }.values) {
+        out += HeaderEntry(dayLabel(rows.first().date), "h${rows.first().id}")
+        rows.forEachIndexed { i, g ->
+            out += RowEntry(g, i == 0, i == rows.lastIndex, "r${g.id}")
         }
     }
     return out
@@ -101,15 +118,10 @@ private fun groupCalls(list: List<CallItem>): List<CallGroup> {
 @Composable
 fun RecentsScreen(granted: Boolean) {
     val ctx = LocalContext.current
-    var calls by remember { mutableStateOf<List<CallItem>>(emptyList()) }
+    var entries by remember { mutableStateOf<List<RecentEntry>>(emptyList()) }
 
     LaunchedEffect(granted) {
-        if (granted) calls = withContext(Dispatchers.IO) { loadCalls(ctx) }
-    }
-
-    val sections = remember(calls) {
-        groupCalls(calls).groupBy { dayKey(it.date) }.values
-            .map { dayLabel(it.first().date) to it }
+        if (granted) entries = withContext(Dispatchers.Default) { buildEntries(loadCalls(ctx)) }
     }
 
     Column(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()) {
@@ -119,17 +131,14 @@ fun RecentsScreen(granted: Boolean) {
                 Text("Call log permission do", color = SamGray)
             }
         } else {
-            LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 24.dp)) {
-                items(sections, key = { it.second.first().id }) { (label, rows) ->
-                    Text(
-                        label, fontSize = 13.sp, color = SamGray,
-                        modifier = Modifier.padding(start = 28.dp, top = 14.dp, bottom = 8.dp)
-                    )
-                    Column(
-                        Modifier.padding(horizontal = 10.dp)
-                            .clip(RoundedCornerShape(28.dp)).background(SamBg)
-                    ) {
-                        rows.forEachIndexed { i, g -> CallRow(g, i == rows.lastIndex) }
+            LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 140.dp)) {
+                items(entries, key = { it.key }, contentType = { it is HeaderEntry }) { e ->
+                    when (e) {
+                        is HeaderEntry -> Text(
+                            e.label, fontSize = 13.sp, color = SamGray,
+                            modifier = Modifier.padding(start = 28.dp, top = 14.dp, bottom = 8.dp)
+                        )
+                        is RowEntry -> CallRow(e)
                     }
                 }
             }
@@ -139,48 +148,41 @@ fun RecentsScreen(granted: Boolean) {
 
 @Composable
 private fun SwipeCallRow(onCall: () -> Unit, content: @Composable () -> Unit) {
-    val offset = remember { Animatable(0f) }
+    var dx by remember { mutableFloatStateOf(0f) }
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
     val currentOnCall by rememberUpdatedState(onCall)
-    var widthPx by remember { mutableIntStateOf(1) }
 
-    Box(Modifier.fillMaxWidth().onSizeChanged { widthPx = it.width }) {
+    Box(Modifier.fillMaxWidth().drawBehind { if (dx > 0f) drawRect(SamGreen) }) {
+        Icon(
+            Icons.Filled.Call, null, tint = Color.White,
+            modifier = Modifier.align(Alignment.CenterStart).padding(start = 24.dp).size(22.dp)
+                .graphicsLayer { alpha = (dx / 150f).coerceIn(0f, 1f) }
+        )
         Box(
-            Modifier.matchParentSize().background(SamGreen).padding(start = 24.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Icon(
-                Icons.Filled.Call, null, tint = Color.White,
-                modifier = Modifier.size(22.dp).graphicsLayer {
-                    alpha = (offset.value / (widthPx * 0.25f)).coerceIn(0f, 1f)
-                }
-            )
-        }
-        Box(
-            Modifier.offset { IntOffset(offset.value.roundToInt(), 0) }
+            Modifier.offset { IntOffset(dx.roundToInt(), 0) }
                 .background(SamBg)
                 .pointerInput(Unit) {
                     detectHorizontalDragGestures(
                         onDragEnd = {
-                            val hit = offset.value > size.width * 0.3f
+                            if (dx > size.width * 0.3f) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                currentOnCall()
+                            }
+                            val from = dx
                             scope.launch {
-                                if (hit) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    currentOnCall()
-                                }
-                                offset.animateTo(
-                                    0f,
-                                    spring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium)
-                                )
+                                animate(
+                                    from, 0f,
+                                    animationSpec = spring(
+                                        Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium
+                                    )
+                                ) { v, _ -> dx = v }
                             }
                         },
-                        onDragCancel = { scope.launch { offset.animateTo(0f) } },
-                        onHorizontalDrag = { change, dx ->
+                        onDragCancel = { dx = 0f },
+                        onHorizontalDrag = { change, delta ->
                             change.consume()
-                            scope.launch {
-                                offset.snapTo((offset.value + dx).coerceIn(0f, size.width * 0.5f))
-                            }
+                            dx = (dx + delta).coerceIn(0f, size.width * 0.5f)
                         }
                     )
                 }
@@ -189,7 +191,8 @@ private fun SwipeCallRow(onCall: () -> Unit, content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun CallRow(g: CallGroup, isLast: Boolean) {
+private fun CallRow(e: RowEntry) {
+    val g = e.g
     val ctx = LocalContext.current
     val missed = g.type == CallLog.Calls.MISSED_TYPE
     val (icon, tint) = when (g.type) {
@@ -200,9 +203,11 @@ private fun CallRow(g: CallGroup, isLast: Boolean) {
     }
     val base = g.name?.takeIf { it.isNotBlank() } ?: g.number.ifBlank { "Unknown" }
     val title = if (g.count > 1) "$base (${g.count})" else base
-    val time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(g.date))
+    val top = if (e.first) 28.dp else 0.dp
+    val bottom = if (e.last) 28.dp else 0.dp
+    val shape = RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
 
-    Column {
+    Column(Modifier.padding(horizontal = 10.dp).clip(shape).background(SamBg)) {
         SwipeCallRow(onCall = { placeCall(ctx, g.number) }) {
             Row(
                 Modifier.fillMaxWidth()
@@ -219,7 +224,7 @@ private fun CallRow(g: CallGroup, isLast: Boolean) {
                 )
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        time, fontSize = 12.sp,
+                        g.time, fontSize = 12.sp,
                         color = if (missed) Color(0xFFFF5A52) else SamGray
                     )
                     Spacer(Modifier.height(2.dp))
@@ -227,7 +232,7 @@ private fun CallRow(g: CallGroup, isLast: Boolean) {
                 }
             }
         }
-        if (!isLast) {
+        if (!e.last) {
             HorizontalDivider(Modifier.padding(horizontal = 20.dp), color = Color(0xFF3A3A3C))
         }
     }
