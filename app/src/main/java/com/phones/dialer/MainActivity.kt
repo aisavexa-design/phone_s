@@ -10,12 +10,19 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -85,32 +92,57 @@ fun App(initialNumber: String) {
     }
 
     var tab by remember { mutableIntStateOf(0) }
-    val pageBg = if (tab == 0) SamBg else Color.Black
+    val navBg by animateColorAsState(
+        if (tab == 0) SamBg else Color.Black,
+        tween(300), label = "navBg"
+    )
 
-    Box(Modifier.fillMaxSize().background(pageBg)) {
-        Crossfade(tab, Modifier.fillMaxSize(), animationSpec = tween(180), label = "tabs") {
-            when (it) {
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        AnimatedContent(
+            targetState = tab,
+            modifier = Modifier.fillMaxSize(),
+            transitionSpec = {
+                val dir = if (targetState > initialState) 1 else -1
+                (slideInHorizontally(tween(340, easing = FastOutSlowInEasing)) { dir * it / 6 } +
+                    fadeIn(tween(260, delayMillis = 60))) togetherWith
+                    (slideOutHorizontally(tween(340, easing = FastOutSlowInEasing)) { -dir * it / 6 } +
+                        fadeOut(tween(160)))
+            },
+            label = "tabs"
+        ) { t ->
+            when (t) {
                 0 -> DialpadScreen(initialNumber)
                 1 -> RecentsScreen(granted)
                 else -> ContactsScreen(granted)
             }
         }
-        SamNavBar(tab, pageBg, Modifier.align(Alignment.BottomCenter)) { tab = it }
+        SamNavBar(tab, navBg, Modifier.align(Alignment.BottomCenter)) { tab = it }
     }
 }
 
 @Composable
 fun SamNavBar(tab: Int, bg: Color, modifier: Modifier = Modifier, onTab: (Int) -> Unit) {
+    val glass = RoundedCornerShape(40.dp)
     Box(
         modifier.fillMaxWidth()
             .background(Brush.verticalGradient(listOf(Color.Transparent, bg.copy(alpha = 0.9f), bg)))
             .navigationBarsPadding()
-            .padding(start = 56.dp, end = 56.dp, top = 36.dp, bottom = 10.dp),
+            .padding(start = 72.dp, end = 72.dp, top = 30.dp, bottom = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(40.dp))
-                .background(SamNav).padding(4.dp)
+            Modifier.fillMaxWidth()
+                .clip(glass)
+                .background(
+                    Brush.verticalGradient(listOf(Color(0xFF3C3C40), Color(0xFF262628))),
+                    alpha = 0.92f
+                )
+                .border(
+                    1.dp,
+                    Brush.verticalGradient(listOf(Color(0x80FFFFFF), Color(0x14FFFFFF))),
+                    glass
+                )
+                .padding(3.dp)
         ) {
             NavItem("Keypad", Icons.Filled.Dialpad, tab == 0, Modifier.weight(1f)) { onTab(0) }
             NavItem("Recents", Icons.Filled.History, tab == 1, Modifier.weight(1f)) { onTab(1) }
@@ -125,15 +157,15 @@ private fun NavItem(
     modifier: Modifier, onClick: () -> Unit
 ) {
     val bg by animateColorAsState(
-        if (selected) SamNavSel else Color.Transparent,
+        if (selected) Color(0x40FFFFFF) else Color.Transparent,
         spring(stiffness = Spring.StiffnessMedium), label = "nav"
     )
     Column(
         modifier.clip(RoundedCornerShape(30.dp)).background(bg)
-            .clickable(onClick = onClick).padding(vertical = 7.dp),
+            .clickable(onClick = onClick).padding(vertical = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(icon, null, tint = Color.White, modifier = Modifier.size(21.dp))
+        Icon(icon, null, tint = Color.White, modifier = Modifier.size(20.dp))
         Text(
             label, color = Color.White, fontSize = 10.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
