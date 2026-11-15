@@ -104,6 +104,7 @@ fun DialpadScreen(initial: String = "") {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DialKey(digit: String, letters: String, onClick: () -> Unit) {
     val src = remember { MutableInteractionSource() }
