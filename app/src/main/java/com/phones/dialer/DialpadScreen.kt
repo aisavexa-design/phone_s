@@ -1,24 +1,19 @@
 package com.phones.dialer
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.provider.ContactsContract
 import android.telecom.TelecomManager
 import android.widget.Toast
-import android.content.Intent
-import android.provider.ContactsContract
-import android.content.Intent
-import android.provider.ContactsContract
-import androidx.compose.foundation.clickable
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.foundation.clickable
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -27,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
@@ -65,6 +61,7 @@ fun addContact(ctx: Context, number: String) {
         Toast.makeText(ctx, "Contacts app nahi mila", Toast.LENGTH_SHORT).show()
     }
 }
+
 private val KEYS = listOf(
     listOf("1" to "", "2" to "ABC", "3" to "DEF"),
     listOf("4" to "GHI", "5" to "JKL", "6" to "MNO"),
@@ -79,8 +76,8 @@ fun DialpadScreen(initial: String = "") {
     val ctx = LocalContext.current
     val haptic = LocalHapticFeedback.current
 
-        Column(Modifier.fillMaxSize().background(SamBg).statusBarsPadding().navigationBarsPadding().padding(bottom = 77.dp)) {
-                Row(
+    Column(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()) {
+        Row(
             Modifier.fillMaxWidth().padding(top = 16.dp, end = 24.dp),
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
@@ -98,48 +95,56 @@ fun DialpadScreen(initial: String = "") {
             Icon(Icons.Filled.Search, null, tint = Color.White, modifier = Modifier.size(24.dp))
             Spacer(Modifier.width(20.dp))
             Icon(Icons.Filled.MoreVert, null, tint = Color.White, modifier = Modifier.size(24.dp))
-                }
+        }
 
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
             Text(
-                number, fontSize = 30.sp, fontWeight = FontWeight.Light,
+                number, fontSize = 34.sp, fontWeight = FontWeight.Light,
                 color = Color.White, maxLines = 1,
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(bottom = 16.dp)
             )
         }
 
-        KEYS.forEach { row ->
-            Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
-                row.forEach { (digit, letters) ->
-                    DialKey(digit, letters, Modifier.weight(1f)) {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        number += digit
+        Column(
+            Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(topStart = 44.dp, topEnd = 44.dp))
+                .background(SamBg)
+                .navigationBarsPadding()
+                .padding(top = 14.dp, bottom = 80.dp)
+        ) {
+            KEYS.forEach { row ->
+                Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
+                    row.forEach { (digit, letters) ->
+                        DialKey(digit, letters, Modifier.weight(1f)) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            number += digit
+                        }
                     }
                 }
             }
-        }
 
-        Row(
-            Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(Modifier.weight(1f))
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                CallButton { placeCall(ctx, number) }
-            }
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                if (number.isNotEmpty()) {
-                    Box(
-                        Modifier.size(48.dp).clip(CircleShape).combinedClickable(
-                            onClick = { number = number.dropLast(1) },
-                            onLongClick = { number = "" }
-                        ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Backspace, null,
-                            tint = Color.White, modifier = Modifier.size(22.dp)
-                        )
+            Row(
+                Modifier.fillMaxWidth().padding(top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.weight(1f))
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    CallButton { placeCall(ctx, number) }
+                }
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    if (number.isNotEmpty()) {
+                        Box(
+                            Modifier.size(48.dp).clip(CircleShape).combinedClickable(
+                                onClick = { number = number.dropLast(1) },
+                                onLongClick = { number = "" }
+                            ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Backspace, null,
+                                tint = Color.White, modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                 }
             }
