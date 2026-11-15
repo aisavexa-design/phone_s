@@ -112,7 +112,7 @@ fun ContactsScreen(granted: Boolean) {
             }
             return@Column
         }
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 24.dp)) {
+         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 140.dp)) {
             if (favs.isNotEmpty()) {
                 item {
                     Row(
