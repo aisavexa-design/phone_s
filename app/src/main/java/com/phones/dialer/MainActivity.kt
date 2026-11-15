@@ -78,9 +78,10 @@ fun App(initialNumber: String) {
     }
 
     var tab by remember { mutableIntStateOf(0) }
+    val pageBg = if (tab == 0) SamBg else Color.Black
     Scaffold(
-        containerColor = SamBg,
-        bottomBar = { SamNavBar(tab) { tab = it } }
+        containerColor = pageBg,
+        bottomBar = { SamNavBar(tab, pageBg) { tab = it } }
     ) { pad ->
         Crossfade(tab, Modifier.padding(pad), animationSpec = tween(180), label = "tabs") {
             when (it) {
@@ -93,9 +94,9 @@ fun App(initialNumber: String) {
 }
 
 @Composable
-fun SamNavBar(tab: Int, onTab: (Int) -> Unit) {
+fun SamNavBar(tab: Int, bg: Color, onTab: (Int) -> Unit) {
     Box(
-        Modifier.fillMaxWidth().background(SamBg).padding(horizontal = 28.dp, vertical = 12.dp),
+        Modifier.fillMaxWidth().background(bg).padding(horizontal = 28.dp, vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(
