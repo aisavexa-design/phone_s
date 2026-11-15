@@ -5,6 +5,10 @@ import android.net.Uri
 import android.os.Bundle
 import android.telecom.TelecomManager
 import android.widget.Toast
+import android.content.Intent
+import android.provider.ContactsContract
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -48,6 +52,15 @@ fun placeCall(ctx: Context, number: String) {
     }
 }
 
+fun addContact(ctx: Context, number: String) {
+    try {
+        val intent = Intent(Intent.ACTION_INSERT, ContactsContract.Contacts.CONTENT_URI)
+            .putExtra(ContactsContract.Intents.Insert.PHONE, number)
+        ctx.startActivity(intent)
+    } catch (e: Exception) {
+        Toast.makeText(ctx, "Contacts app nahi mila", Toast.LENGTH_SHORT).show()
+    }
+}
 private val KEYS = listOf(
     listOf("1" to "", "2" to "ABC", "3" to "DEF"),
     listOf("4" to "GHI", "5" to "JKL", "6" to "MNO"),
@@ -63,15 +76,25 @@ fun DialpadScreen(initial: String = "") {
     val haptic = LocalHapticFeedback.current
 
         Column(Modifier.fillMaxSize().background(SamBg).statusBarsPadding().navigationBarsPadding().padding(bottom = 77.dp)) {
-        Row(
+                Row(
             Modifier.fillMaxWidth().padding(top = 16.dp, end = 24.dp),
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (number.isNotEmpty()) {
+                Box(
+                    Modifier.size(40.dp).clip(CircleShape)
+                        .clickable { addContact(ctx, number) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.Add, null, tint = Color.White, modifier = Modifier.size(26.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+            }
             Icon(Icons.Filled.Search, null, tint = Color.White, modifier = Modifier.size(24.dp))
             Spacer(Modifier.width(20.dp))
             Icon(Icons.Filled.MoreVert, null, tint = Color.White, modifier = Modifier.size(24.dp))
-        }
+                }
 
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
             Text(
