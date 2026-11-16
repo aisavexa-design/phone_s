@@ -71,9 +71,9 @@ object SearchStore {
     fun clear(ctx: Context) = save(ctx, emptyList())
 }
 
-private fun digits(s: String) = s.filter { it.isDigit() }
+fun digits(s: String) = s.filter { it.isDigit() }
 
-private fun loadPool(ctx: Context): List<SearchItem> {
+fun loadPool(ctx: Context): List<SearchItem> {
     val out = ArrayList<SearchItem>()
     val seen = HashSet<String>()
     try {
