@@ -7,6 +7,9 @@ import android.os.Bundle
 import android.provider.ContactsContract
 import android.telecom.TelecomManager
 import android.widget.Toast
+import androidx.compose.animation.animateContentSize
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -76,6 +79,26 @@ fun DialpadScreen(initial: String = "") {
     val ctx = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val openSearch = LocalSearchOpen.current
+        var pool by remember { mutableStateOf<List<Pair<SearchItem, String>>>(emptyList()) }
+    LaunchedEffect(number.isNotEmpty()) {
+        if (number.isNotEmpty() && pool.isEmpty()) {
+            pool = withContext(Dispatchers.IO) { loadPool(ctx).map { it to digits(it.number) } }
+        }
+    }
+    val suggestion = remember(number, pool) {
+        val q = digits(number)
+        if (q.length < 2) null else pool.filter { it.second.contains(q) }
+            .minWithOrNull(
+                compareBy<Pair<SearchItem, String>>(
+                    {
+                        val d = it.second
+                        val n = if (d.length > 10) d.takeLast(10) else d
+                        if (d.startsWith(q) || n.startsWith(q)) 0 else 1
+                    },
+                    { if (it.first.name.isBlank()) 1 else 0 }
+                )
+            )?.first
+    }
 
     Column(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()) {
         Row(
@@ -97,13 +120,43 @@ fun DialpadScreen(initial: String = "") {
             HeaderIcon(Icons.Filled.MoreVert) { openCallSettings(ctx) }
         }
 
-        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
-            Text(
-                number, fontSize = 34.sp, fontWeight = FontWeight.Light,
-                color = Color.White, maxLines = 1,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-        }
+                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
+            Column(
+                Modifier.padding(bottom = 16.dp).animateContentSize(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                val s = suggestion
+                if (s != null) {
+                    Row(
+                        Modifier.padding(bottom = 14.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(Color(0xFF232326))
+                            .clickable { number = s.number }
+                            .padding(start = 8.dp, end = 18.dp, top = 8.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Avatar(
+                            s.name.ifBlank { s.number }, s.photo, 36.dp,
+                            s.number.hashCode().toLong() and 0x7fffffffL, 16.sp
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                s.name.ifBlank { s.number }, fontSize = 16.sp,
+                                color = Color.White, maxLines = 1
+                            )
+                            if (s.name.isNotBlank()) {
+                                Text(s.number, fontSize = 12.sp, color = SamGray)
+                            }
+                        }
+                    }
+                }
+                Text(
+                    number, fontSize = 34.sp, fontWeight = FontWeight.Light,
+                    color = Color.White, maxLines = 1
+                )
+            }
+                }
 
         Column(
             Modifier.fillMaxWidth()
