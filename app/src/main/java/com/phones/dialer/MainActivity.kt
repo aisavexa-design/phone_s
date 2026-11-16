@@ -11,12 +11,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterExitState
+import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -36,14 +38,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+
+private const val DUR = 460
+private val HeavyEase = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,6 +99,7 @@ fun App(initialNumber: String) {
     }
 
     var tab by remember { mutableIntStateOf(0) }
+    var prevTab by remember { mutableIntStateOf(0) }
     val navBg by animateColorAsState(
         if (tab == 0) SamBg else Color.Black,
         tween(300), label = "navBg"
@@ -102,21 +110,53 @@ fun App(initialNumber: String) {
             targetState = tab,
             modifier = Modifier.fillMaxSize(),
             transitionSpec = {
-                val dir = if (targetState > initialState) 1 else -1
-                (slideInHorizontally(tween(340, easing = FastOutSlowInEasing)) { dir * it / 6 } +
-                    fadeIn(tween(260, delayMillis = 60))) togetherWith
-                    (slideOutHorizontally(tween(340, easing = FastOutSlowInEasing)) { -dir * it / 6 } +
-                        fadeOut(tween(160)))
+                if (targetState > initialState) {
+                    (slideInHorizontally(tween(DUR, easing = HeavyEase)) { it } togetherWith
+                        fadeOut(tween(DUR), targetAlpha = 0.999f))
+                        .apply { targetContentZIndex = 1f }
+                } else {
+                    (EnterTransition.None togetherWith
+                        slideOutHorizontally(tween(DUR, easing = HeavyEase)) { it })
+                        .apply { targetContentZIndex = -1f }
+                }
             },
             label = "tabs"
         ) { t ->
-            when (t) {
-                0 -> DialpadScreen(initialNumber)
-                1 -> RecentsScreen(granted)
-                else -> ContactsScreen(granted)
+            val other = if (t == tab) prevTab else tab
+            val behind = t < other
+            val p by transition.animateFloat(
+                transitionSpec = { tween(DUR, easing = HeavyEase) },
+                label = "depth"
+            ) { s -> if (s == EnterExitState.Visible) 0f else 1f }
+
+            Box(
+                Modifier.fillMaxSize()
+                    .graphicsLayer {
+                        if (behind) {
+                            val s = 1f - 0.08f * p
+                            scaleX = s
+                            scaleY = s
+                            translationX = -size.width * 0.2f * p
+                        }
+                    }
+                    .drawWithContent {
+                        drawContent()
+                        if (behind) drawRect(Color.Black.copy(alpha = 0.5f * p))
+                    }
+            ) {
+                when (t) {
+                    0 -> DialpadScreen(initialNumber)
+                    1 -> RecentsScreen(granted)
+                    else -> ContactsScreen(granted)
+                }
             }
         }
-        SamNavBar(tab, navBg, Modifier.align(Alignment.BottomCenter)) { tab = it }
+        SamNavBar(tab, navBg, Modifier.align(Alignment.BottomCenter)) {
+            if (it != tab) {
+                prevTab = tab
+                tab = it
+            }
+        }
     }
 }
 
