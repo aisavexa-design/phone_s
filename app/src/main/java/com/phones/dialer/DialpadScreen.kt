@@ -75,6 +75,7 @@ fun DialpadScreen(initial: String = "") {
     var number by remember { mutableStateOf(initial) }
     val ctx = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val openSearch = LocalSearchOpen.current
 
     Column(Modifier.fillMaxSize().background(Color.Black).statusBarsPadding()) {
         Row(
@@ -92,9 +93,8 @@ fun DialpadScreen(initial: String = "") {
                 }
                 Spacer(Modifier.width(12.dp))
             }
-            Icon(Icons.Filled.Search, null, tint = Color.White, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.width(20.dp))
-            Icon(Icons.Filled.MoreVert, null, tint = Color.White, modifier = Modifier.size(24.dp))
+            HeaderIcon(Icons.Filled.Search) { openSearch() }
+            HeaderIcon(Icons.Filled.MoreVert) { openCallSettings(ctx) }
         }
 
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
