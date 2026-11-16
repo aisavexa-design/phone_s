@@ -2,6 +2,12 @@ package com.phones.dialer
 
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.content.Context
+import android.content.Intent
+import android.provider.Settings
+import android.telecom.TelecomManager
+import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -38,20 +44,45 @@ val TILE_COLORS = listOf(
 )
 
 @Composable
+val LocalSearchOpen = compositionLocalOf<() -> Unit> { {} }
+
+fun openCallSettings(ctx: Context) {
+    try {
+        ctx.startActivity(Intent(TelecomManager.ACTION_SHOW_CALL_SETTINGS))
+    } catch (e: Exception) {
+        try {
+            ctx.startActivity(Intent(Settings.ACTION_SETTINGS))
+        } catch (e2: Exception) {
+            Toast.makeText(ctx, "Settings nahi khuli", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+@Composable
+fun HeaderIcon(icon: ImageVector, onClick: () -> Unit) {
+    Box(
+        Modifier.size(44.dp).clip(CircleShape).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, null, tint = Color.White, modifier = Modifier.size(24.dp))
+    }
+}
+
+@Composable
 fun PageHeader(firstIcon: ImageVector) {
+    val ctx = LocalContext.current
+    val openSearch = LocalSearchOpen.current
     Row(
-        Modifier.fillMaxWidth().padding(start = 28.dp, end = 24.dp, top = 16.dp, bottom = 8.dp),
+        Modifier.fillMaxWidth().padding(start = 28.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             "Phone", fontSize = 20.sp, fontWeight = FontWeight.Bold,
             color = Color.White, modifier = Modifier.weight(1f)
         )
-        Icon(firstIcon, null, tint = Color.White, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.width(20.dp))
-        Icon(Icons.Filled.Search, null, tint = Color.White, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.width(20.dp))
-        Icon(Icons.Filled.MoreVert, null, tint = Color.White, modifier = Modifier.size(24.dp))
+        HeaderIcon(firstIcon) { }
+        HeaderIcon(Icons.Filled.Search) { openSearch() }
+        HeaderIcon(Icons.Filled.MoreVert) { openCallSettings(ctx) }
     }
 }
 
