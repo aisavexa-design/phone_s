@@ -1,25 +1,32 @@
 package com.phones.dialer
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.BlockedNumberContract
 import android.provider.CallLog
 import android.text.format.DateUtils
+import android.widget.Toast
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallMade
 import androidx.compose.material.icons.filled.CallMissed
 import androidx.compose.material.icons.filled.CallReceived
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Voicemail
 import androidx.compose.material3.HorizontalDivider
@@ -32,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -40,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,7 +62,8 @@ data class CallItem(val id: Long, val number: String, val name: String?, val typ
 
 data class CallGroup(
     val id: Long, val number: String, val name: String?,
-    val type: Int, val date: Long, val count: Int, val time: String
+    val type: Int, val date: Long, val count: Int, val time: String,
+    val ids: List<Long>
 )
 
 sealed interface RecentEntry { val key: String }
@@ -61,6 +71,32 @@ data class HeaderEntry(val label: String, override val key: String) : RecentEntr
 data class RowEntry(
     val g: CallGroup, val first: Boolean, val last: Boolean, override val key: String
 ) : RecentEntry
+
+fun blockNumber(ctx: Context, number: String): Boolean {
+    if (number.isBlank()) return false
+    return try {
+        if (!BlockedNumberContract.canCurrentUserBlockNumbers(ctx)) {
+            false
+        } else {
+            val v = ContentValues().apply {
+                put(BlockedNumberContract.BlockedNumbers.COLUMN_ORIGINAL_NUMBER, number)
+            }
+            ctx.contentResolver.insert(BlockedNumberContract.BlockedNumbers.CONTENT_URI, v) != null
+        }
+    } catch (e: Exception) {
+        false
+    }
+}
+
+fun deleteCalls(ctx: Context, ids: List<Long>): Boolean {
+    if (ids.isEmpty()) return false
+    return try {
+        val sel = "${CallLog.Calls._ID} IN (${ids.joinToString(",")})"
+        ctx.contentResolver.delete(CallLog.Calls.CONTENT_URI, sel, null) > 0
+    } catch (e: Exception) {
+        false
+    }
+}
 
 private fun loadCalls(ctx: Context): List<CallItem> {
     val out = mutableListOf<CallItem>()
@@ -98,10 +134,10 @@ private fun buildEntries(calls: List<CallItem>): List<RecentEntry> {
         if (last != null && last.number == c.number && last.type == c.type &&
             dayKey(last.date) == dayKey(c.date)
         ) {
-            groups[groups.lastIndex] = last.copy(count = last.count + 1)
+            groups[groups.lastIndex] = last.copy(count = last.count + 1, ids = last.ids + c.id)
         } else {
             groups += CallGroup(
-                c.id, c.number, c.name, c.type, c.date, 1, fmt.format(Date(c.date))
+                c.id, c.number, c.name, c.type, c.date, 1, fmt.format(Date(c.date)), listOf(c.id)
             )
         }
     }
@@ -119,8 +155,10 @@ private fun buildEntries(calls: List<CallItem>): List<RecentEntry> {
 fun RecentsScreen(granted: Boolean) {
     val ctx = LocalContext.current
     var entries by remember { mutableStateOf<List<RecentEntry>>(emptyList()) }
+    var version by remember { mutableIntStateOf(0) }
+    var menuFor by remember { mutableStateOf<CallGroup?>(null) }
 
-    LaunchedEffect(granted) {
+    LaunchedEffect(granted, version) {
         if (granted) entries = withContext(Dispatchers.Default) { buildEntries(loadCalls(ctx)) }
     }
 
@@ -138,11 +176,69 @@ fun RecentsScreen(granted: Boolean) {
                             e.label, fontSize = 13.sp, color = SamGray,
                             modifier = Modifier.padding(start = 28.dp, top = 14.dp, bottom = 8.dp)
                         )
-                        is RowEntry -> CallRow(e)
+                        is RowEntry -> CallRow(e, onLong = { menuFor = it })
                     }
                 }
             }
         }
+    }
+
+    menuFor?.let { g ->
+        CallActionDialog(
+            g,
+            onDismiss = { menuFor = null },
+            onBlock = {
+                menuFor = null
+                val ok = blockNumber(ctx, g.number)
+                Toast.makeText(
+                    ctx,
+                    if (ok) "Number block ho gaya"
+                    else "Block karne ke liye Phone S ko default phone app banao",
+                    Toast.LENGTH_LONG
+                ).show()
+            },
+            onDelete = {
+                menuFor = null
+                if (deleteCalls(ctx, g.ids)) version++
+                else Toast.makeText(
+                    ctx, "Delete nahi hua, call log permission do", Toast.LENGTH_LONG
+                ).show()
+            }
+        )
+    }
+}
+
+@Composable
+private fun CallActionDialog(
+    g: CallGroup, onDismiss: () -> Unit, onBlock: () -> Unit, onDelete: () -> Unit
+) {
+    val name = g.name?.takeIf { it.isNotBlank() } ?: g.number.ifBlank { "Unknown" }
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(32.dp))
+                .background(Color(0xFF232326)).padding(vertical = 12.dp)
+        ) {
+            Text(
+                name, fontSize = 18.sp, color = Color.White,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 14.dp)
+            )
+            ActionRow(Icons.Filled.Block, "Block", Color(0xFFFF5A52), onBlock)
+            ActionRow(Icons.Filled.Delete, "Delete", Color.White, onDelete)
+        }
+    }
+}
+
+@Composable
+private fun ActionRow(icon: ImageVector, label: String, tint: Color, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clickable(onClick = onClick)
+            .padding(horizontal = 24.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.width(16.dp))
+        Text(label, fontSize = 16.sp, color = tint)
     }
 }
 
@@ -190,10 +286,12 @@ private fun SwipeCallRow(onCall: () -> Unit, content: @Composable () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun CallRow(e: RowEntry) {
+private fun CallRow(e: RowEntry, onLong: (CallGroup) -> Unit) {
     val g = e.g
     val ctx = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val missed = g.type == CallLog.Calls.MISSED_TYPE
     val (icon, tint) = when (g.type) {
         CallLog.Calls.OUTGOING_TYPE -> Icons.Filled.CallMade to Color(0xFF1FA463)
@@ -211,7 +309,13 @@ private fun CallRow(e: RowEntry) {
         SwipeCallRow(onCall = { placeCall(ctx, g.number) }) {
             Row(
                 Modifier.fillMaxWidth()
-                    .clickable { placeCall(ctx, g.number) }
+                    .combinedClickable(
+                        onClick = { placeCall(ctx, g.number) },
+                        onLongClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLong(g)
+                        }
+                    )
                     .padding(horizontal = 20.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
