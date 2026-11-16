@@ -5,6 +5,7 @@ import android.app.role.RoleManager
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -78,6 +79,7 @@ private val PERMS = arrayOf(
     Manifest.permission.READ_PHONE_STATE
 )
 
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun App(initialNumber: String) {
     val ctx = LocalContext.current
