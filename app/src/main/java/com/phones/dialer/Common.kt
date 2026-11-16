@@ -43,7 +43,6 @@ val TILE_COLORS = listOf(
     Color(0xFFB69CF0) to Color(0xFF9A8CE6)
 )
 
-@Composable
 val LocalSearchOpen = compositionLocalOf<() -> Unit> { {} }
 
 fun openCallSettings(ctx: Context) {
