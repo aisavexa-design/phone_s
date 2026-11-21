@@ -177,7 +177,7 @@ fun SamNavBar(tab: Int, bg: Color, modifier: Modifier = Modifier, onTab: (Int) -
         modifier.fillMaxWidth()
             .background(Brush.verticalGradient(listOf(Color.Transparent, bg.copy(alpha = 0.9f), bg)))
             .navigationBarsPadding()
-            .padding(start = 72.dp, end = 72.dp, top = 30.dp, bottom = 10.dp),
+            .padding(start = 58.dp, end = 72.dp, top = 30.dp, bottom = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(
@@ -212,7 +212,7 @@ private fun NavItem(
     )
     Column(
         modifier.clip(RoundedCornerShape(30.dp)).background(bg)
-            .clickable(onClick = onClick).padding(vertical = 5.dp),
+            .clickable(onClick = onClick).padding(vertical = 3.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(icon, null, tint = Color.White, modifier = Modifier.size(20.dp))
