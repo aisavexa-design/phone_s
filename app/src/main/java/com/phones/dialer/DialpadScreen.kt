@@ -163,7 +163,7 @@ fun DialpadScreen(initial: String = "") {
                 .clip(RoundedCornerShape(topStart = 44.dp, topEnd = 44.dp))
                 .background(SamBg)
                 .navigationBarsPadding()
-                .padding(top = 14.dp, bottom = 80.dp)
+                .padding(top = 14.dp, bottom = 94.dp)
         ) {
             KEYS.forEach { row ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
@@ -177,7 +177,7 @@ fun DialpadScreen(initial: String = "") {
             }
 
             Row(
-                Modifier.fillMaxWidth().padding(top = 4.dp),
+                Modifier.fillMaxWidth().padding(top = 20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(Modifier.weight(1f))
@@ -247,5 +247,5 @@ private fun CallButton(onClick: () -> Unit) {
         Modifier.size(66.dp).scale(scale).clip(CircleShape).background(SamGreen)
             .combinedClickable(interactionSource = src, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center
-    ) { Icon(Icons.Filled.Call, null, tint = Color.White, modifier = Modifier.size(30.dp)) }
+       ) { Icon(Icons.Filled.Call, null, tint = Color.White, modifier = Modifier.size(40.dp)) }
 }
