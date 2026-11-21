@@ -262,8 +262,8 @@ fun DialpadScreen(initial: String = "") {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     CallButton { placeCall(ctx, number) }
                 }
-                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    AnimatedVisibility(
+                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    androidx.compose.animation.AnimatedVisibility(
                         visible = number.isNotEmpty(),
                         enter = fadeIn(tween(220)) +
                             scaleIn(spring(dampingRatio = 0.6f, stiffness = 500f), initialScale = 0.6f),
