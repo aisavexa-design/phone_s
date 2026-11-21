@@ -1,11 +1,9 @@
 package com.phones.dialer
 
 import android.Manifest
-import android.app.role.RoleManager
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -16,6 +14,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Spring
@@ -91,19 +90,9 @@ fun App(initialNumber: String) {
     val permLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { granted = it.values.all { ok -> ok } }
-    val roleLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { }
 
     LaunchedEffect(granted) {
-        if (!granted) {
-            permLauncher.launch(PERMS)
-        } else {
-            val rm = ctx.getSystemService(RoleManager::class.java)
-            if (rm.isRoleAvailable(RoleManager.ROLE_DIALER) &&
-                !rm.isRoleHeld(RoleManager.ROLE_DIALER)
-            ) roleLauncher.launch(rm.createRequestRoleIntent(RoleManager.ROLE_DIALER))
-        }
+        if (!granted) permLauncher.launch(PERMS)
     }
 
     var tab by remember { mutableIntStateOf(0) }
