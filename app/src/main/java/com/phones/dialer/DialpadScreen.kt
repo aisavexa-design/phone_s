@@ -199,4 +199,150 @@ fun DialpadScreen(initial: String = "") {
                 HeaderIcon(Icons.Filled.Add) { addContact(ctx, number) }
             }
             HeaderIcon(Icons.Filled.Search) { openSearch() }
-            HeaderIcon(Icons.Filled.MoreVert) { openCallSettings(ct
+                        HeaderIcon(Icons.Filled.MoreVert) { openCallSettings(ctx) }
+        }
+
+        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
+            Column(
+                Modifier.padding(bottom = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                AnimatedContent(
+                    targetState = suggestion,
+                    transitionSpec = {
+                        (fadeIn(tween(380, delayMillis = 90, easing = SoftEase)) +
+                            slideInVertically(tween(520, easing = SoftEase)) { it / 3 } +
+                            scaleIn(tween(520, easing = SoftEase), initialScale = 0.88f))
+                            .togetherWith(
+                                fadeOut(tween(200)) + scaleOut(tween(260), targetScale = 0.94f)
+                            )
+                            .using(SizeTransform(clip = false) { _, _ ->
+                                tween(520, easing = SoftEase)
+                            })
+                    },
+                    contentAlignment = Alignment.BottomCenter,
+                    label = "suggestion"
+                ) { s ->
+                    if (s != null) {
+                        SuggestionPill(s) { number = s.number }
+                    } else {
+                        Spacer(Modifier.height(0.dp))
+                    }
+                }
+                Text(
+                    number, fontSize = numSize.sp, fontWeight = FontWeight.Light,
+                    color = Color.White, maxLines = 1
+                )
+            }
+        }
+
+        Column(
+            Modifier.fillMaxWidth()
+                .clip(RoundedCornerShape(topStart = 44.dp, topEnd = 44.dp))
+                .background(SamBg)
+                .navigationBarsPadding()
+                .padding(top = 14.dp, bottom = 94.dp)
+        ) {
+            KEYS.forEach { row ->
+                Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
+                    row.forEach { (digit, letters) ->
+                        DialKey(
+                            digit, letters, Modifier.weight(1f),
+                            longPress = if (digit == "0") ({ number += "+" }) else null
+                        ) { number += digit }
+                    }
+                }
+            }
+
+            Row(
+                Modifier.fillMaxWidth().padding(top = 20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(Modifier.weight(1f))
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    CallButton { placeCall(ctx, number) }
+                }
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    AnimatedVisibility(
+                        visible = number.isNotEmpty(),
+                        enter = fadeIn(tween(220)) +
+                            scaleIn(spring(dampingRatio = 0.6f, stiffness = 500f), initialScale = 0.6f),
+                        exit = fadeOut(tween(140)) + scaleOut(tween(140), targetScale = 0.7f)
+                    ) {
+                        Box(
+                            Modifier.size(56.dp)
+                                .springPress(0.85f, 0.16f, onLongClick = { number = "" }) {
+                                    number = number.dropLast(1)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.Backspace, null,
+                                tint = Color.White, modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SuggestionPill(s: SearchItem, onPick: () -> Unit) {
+    Row(
+        Modifier.padding(bottom = 14.dp)
+            .springPress(0.96f, 0f, HapticFeedbackConstants.CONTEXT_CLICK, onClick = onPick)
+            .clip(RoundedCornerShape(24.dp))
+            .background(Color(0xFF232326))
+            .padding(start = 8.dp, end = 18.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Avatar(
+            s.name.ifBlank { s.number }, s.photo, 36.dp,
+            s.number.hashCode().toLong() and 0x7fffffffL, 16.sp
+        )
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(
+                s.name.ifBlank { s.number }, fontSize = 16.sp,
+                color = Color.White, maxLines = 1
+            )
+            if (s.name.isNotBlank()) {
+                Text(s.number, fontSize = 12.sp, color = SamGray)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DialKey(
+    digit: String, letters: String, modifier: Modifier,
+    longPress: (() -> Unit)?, onClick: () -> Unit
+) {
+    Box(
+        modifier.height(68.dp)
+            .springPress(0.86f, 0.16f, onLongClick = longPress, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(digit, fontSize = 31.sp, fontWeight = FontWeight.Light, color = Color.White)
+            if (digit == "1") {
+                Icon(Icons.Filled.Voicemail, null, tint = SamGray, modifier = Modifier.size(16.dp))
+            } else if (letters.isNotEmpty()) {
+                Text(letters, fontSize = 11.sp, color = SamGray)
+            }
+        }
+    }
+}
+
+@Composable
+private fun CallButton(onClick: () -> Unit) {
+    Box(
+        Modifier.size(66.dp)
+            .springPress(0.92f, 0f, HapticFeedbackConstants.CONTEXT_CLICK, onClick = onClick)
+            .clip(CircleShape)
+            .background(SamGreen),
+        contentAlignment = Alignment.Center
+    ) { Icon(Icons.Filled.Call, null, tint = Color.White, modifier = Modifier.size(40.dp)) }
+}
