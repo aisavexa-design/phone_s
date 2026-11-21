@@ -187,15 +187,18 @@ fun RecentsScreen(granted: Boolean) {
         CallActionDialog(
             g,
             onDismiss = { menuFor = null },
-            onBlock = {
+                onBlock = {
                 menuFor = null
                 val ok = blockNumber(ctx, g.number)
-                Toast.makeText(
-                    ctx,
-                    if (ok) "Number block ho gaya"
-                    else "Block karne ke liye Phone S ko default phone app banao",
-                    Toast.LENGTH_LONG
-                ).show()
+                if (ok) {
+                    Toast.makeText(ctx, "Number block ho gaya", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(
+                        ctx, "Block list original Phone ki settings mein hai, wahan se block karo",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    openCallSettings(ctx)
+                }
             },
             onDelete = {
                 menuFor = null
