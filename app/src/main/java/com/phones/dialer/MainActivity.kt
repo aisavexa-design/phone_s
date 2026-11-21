@@ -10,24 +10,17 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterExitState
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -43,18 +36,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 
-private const val DUR = 460
 private val HeavyEase = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
 
 class MainActivity : ComponentActivity() {
@@ -78,7 +72,6 @@ private val PERMS = arrayOf(
     Manifest.permission.READ_PHONE_STATE
 )
 
-@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun App(initialNumber: String) {
     val ctx = LocalContext.current
@@ -96,67 +89,57 @@ fun App(initialNumber: String) {
     }
 
     var tab by remember { mutableIntStateOf(0) }
-    var prevTab by remember { mutableIntStateOf(0) }
     var searching by remember { mutableStateOf(false) }
-    val navBg by animateColorAsState(
-        if (tab == 0) SamBg else Color.Black,
-        tween(300), label = "navBg"
-    )
+    var refresh by remember { mutableIntStateOf(0) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        var first = true
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (first) first = false else refresh++
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val pos = remember { Animatable(0f) }
+    LaunchedEffect(tab) {
+        pos.animateTo(tab.toFloat(), spring(dampingRatio = 1f, stiffness = 300f))
+    }
 
     BackHandler(enabled = searching) { searching = false }
 
     CompositionLocalProvider(LocalSearchOpen provides { searching = true }) {
         Box(Modifier.fillMaxSize().background(Color.Black)) {
-            AnimatedContent(
-                targetState = tab,
-                modifier = Modifier.fillMaxSize(),
-                transitionSpec = {
-                    if (targetState > initialState) {
-                        (slideInHorizontally(tween(DUR, easing = HeavyEase)) { it } togetherWith
-                            fadeOut(tween(DUR), targetAlpha = 0.999f))
-                            .apply { targetContentZIndex = 1f }
-                    } else {
-                        (EnterTransition.None togetherWith
-                            slideOutHorizontally(tween(DUR, easing = HeavyEase)) { it })
-                            .apply { targetContentZIndex = -1f }
-                    }
-                },
-                label = "tabs"
-            ) { t ->
-                val other = if (t == tab) prevTab else tab
-                val behind = t < other
-                val p by transition.animateFloat(
-                    transitionSpec = { tween(DUR, easing = HeavyEase) },
-                    label = "depth"
-                ) { s -> if (s == EnterExitState.Visible) 0f else 1f }
-
-                Box(
-                    Modifier.fillMaxSize()
-                        .graphicsLayer {
-                            if (behind) {
-                                val s = 1f - 0.08f * p
-                                scaleX = s
-                                scaleY = s
-                                translationX = -size.width * 0.2f * p
+            for (i in 0..2) {
+                key(i) {
+                    Box(
+                        Modifier.fillMaxSize().graphicsLayer {
+                            val d = i - pos.value
+                            translationX = when {
+                                d > 0f -> size.width * d
+                                d <= -1f -> -size.width
+                                else -> size.width * 0.28f * d
+                            }
+                            alpha = when {
+                                d >= 1f || d <= -1f -> 0f
+                                d > 0f -> 1f
+                                else -> 1f + 0.5f * d
                             }
                         }
-                        .drawWithContent {
-                            drawContent()
-                            if (behind) drawRect(Color.Black.copy(alpha = 0.5f * p))
+                    ) {
+                        when (i) {
+                            0 -> DialpadScreen(initialNumber)
+                            1 -> key(refresh) { RecentsScreen(granted) }
+                            else -> key(refresh) { ContactsScreen(granted) }
                         }
-                ) {
-                    when (t) {
-                        0 -> DialpadScreen(initialNumber)
-                        1 -> RecentsScreen(granted)
-                        else -> ContactsScreen(granted)
                     }
                 }
             }
-            SamNavBar(tab, navBg, Modifier.align(Alignment.BottomCenter)) {
-                if (it != tab) {
-                    prevTab = tab
-                    tab = it
-                }
+            SamNavBar(tab, Modifier.align(Alignment.BottomCenter)) {
+                if (it != tab) tab = it
             }
             AnimatedVisibility(
                 visible = searching,
@@ -171,13 +154,17 @@ fun App(initialNumber: String) {
 }
 
 @Composable
-fun SamNavBar(tab: Int, bg: Color, modifier: Modifier = Modifier, onTab: (Int) -> Unit) {
+fun SamNavBar(tab: Int, modifier: Modifier = Modifier, onTab: (Int) -> Unit) {
+    val bg by animateColorAsState(
+        if (tab == 0) SamBg else Color.Black,
+        tween(300), label = "navBg"
+    )
     val glass = RoundedCornerShape(40.dp)
     Box(
         modifier.fillMaxWidth()
             .background(Brush.verticalGradient(listOf(Color.Transparent, bg.copy(alpha = 0.9f), bg)))
             .navigationBarsPadding()
-            .padding(start = 58.dp, end = 72.dp, top = 30.dp, bottom = 10.dp),
+            .padding(start = 58.dp, end = 58.dp, top = 28.dp, bottom = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(
